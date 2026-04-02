@@ -1,0 +1,14 @@
+services:
+  backend:
+    build: ./backend
+    container_name: personal-web-backend
+    restart: unless-stopped
+    network_mode: host
+
+  frontend:
+    build: ./frontend
+    container_name: personal-web-frontend
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      - backend
