@@ -1,14 +1,7 @@
-# ── Stage 1: Build ──────────────────────────────────────────
-FROM maven:3.9.6-eclipse-temurin-21 AS build
-WORKDIR /app
-COPY pom.xml .
-RUN mvn dependency:go-offline -q
-COPY src ./src
-RUN mvn package -DskipTests -q
-
-# ── Stage 2: Run ─────────────────────────────────────────────
+# JAR được build sẵn trên máy local bằng: mvn package -DskipTests
+# Docker chỉ copy JAR vào, không compile lại → nhẹ và nhanh
 FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
-COPY --from=build /app/target/personal-web-backend-1.0.0.jar app.jar
+COPY target/personal-web-backend-1.0.0.jar app.jar
 EXPOSE 8282
-ENTRYPOINT ["java", "-jar", "app.jar", "--spring.profiles.active=prod"]
+ENTRYPOINT ["java", "-Xms128m", "-Xmx400m", "-jar", "app.jar", "--spring.profiles.active=prod"]
