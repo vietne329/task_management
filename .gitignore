@@ -1,6 +1,5 @@
 # ── Maven / Spring Boot ──────────────────────────────────────
 backend/target/
-backend/*.jar
 backend/*.war
 
 # ── Node / React / Vite ──────────────────────────────────────
