@@ -2,6 +2,7 @@ package com.personalweb.app.security;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -21,12 +22,18 @@ public class JwtUtil {
     @Value("${jwt.expiration}")
     private Long expiration;
 
-    private Key getSigningKey() {
+    private Key signingKey;
+
+    @PostConstruct
+    private void initSigningKey() {
         byte[] keyBytes = secret.getBytes();
-        // Ensure key is at least 256 bits for HMAC-SHA256
         byte[] paddedKey = new byte[32];
         System.arraycopy(keyBytes, 0, paddedKey, 0, Math.min(keyBytes.length, 32));
-        return Keys.hmacShaKeyFor(paddedKey);
+        signingKey = Keys.hmacShaKeyFor(paddedKey);
+    }
+
+    private Key getSigningKey() {
+        return signingKey;
     }
 
     public String extractUsername(String token) {
@@ -50,7 +57,7 @@ public class JwtUtil {
                 .getBody();
     }
 
-    private Boolean isTokenExpired(String token) {
+    public Boolean isTokenExpired(String token) {
         return extractExpiration(token).before(new Date());
     }
 

@@ -7,14 +7,14 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Collections;
 
 @Component
 @RequiredArgsConstructor
@@ -22,7 +22,6 @@ import java.io.IOException;
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
-    private final UserDetailsService userDetailsService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -30,29 +29,32 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
 
         final String authHeader = request.getHeader("Authorization");
-        String jwt = null;
-        String username = null;
 
-        // Extract JWT from Bearer token header
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            jwt = authHeader.substring(7);
-            try {
-                username = jwtUtil.extractUsername(jwt);
-            } catch (Exception e) {
-                log.warn("JWT extraction failed: {}", e.getMessage());
-            }
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            filterChain.doFilter(request, response);
+            return;
         }
 
-        // Validate token and set authentication context
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+        String jwt = authHeader.substring(7);
+        String username = null;
+        String role = null;
 
-            if (jwtUtil.validateToken(jwt, userDetails)) {
+        try {
+            username = jwtUtil.extractUsername(jwt);
+            role = jwtUtil.extractRole(jwt);
+        } catch (Exception e) {
+            log.warn("JWT extraction failed: {}", e.getMessage());
+        }
+
+        // Build auth from token claims — no DB query needed
+        if (username != null && role != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            if (!jwtUtil.isTokenExpired(jwt)) {
+                var authority = new SimpleGrantedAuthority("ROLE_" + role.replace("ROLE_", ""));
                 UsernamePasswordAuthenticationToken authToken =
                         new UsernamePasswordAuthenticationToken(
-                                userDetails,
+                                username,
                                 null,
-                                userDetails.getAuthorities()
+                                Collections.singletonList(authority)
                         );
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
